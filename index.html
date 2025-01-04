@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Globe Visualization</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+    #tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="tooltip"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three-globe"></script>
+
+  <script>
+    // Initialize Scene, Camera, and Renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Add Globe
+    const globe = new ThreeGlobe()
+      .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+      .pointsData([]) // Placeholder for points data
+      .pointLat(d => d.coordinates[0])
+      .pointLng(d => d.coordinates[1])
+      .pointAltitude(0.02)
+      .pointRadius(0.2)
+      .pointColor(d => {
+        switch (d.status) {
+          case "Yes": return "green";
+          case "No": return "red";
+          case "UR": return "yellow";
+          default: return "gray";
+        }
+      });
+
+    scene.add(globe);
+    camera.position.z = 200;
+
+    // Tooltip
+    const tooltip = document.getElementById('tooltip');
+
+    function showTooltip(content, x, y) {
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
+      tooltip.innerHTML = content;
+      tooltip.style.display = 'block';
+    }
+
+    function hideTooltip() {
+      tooltip.style.display = 'none';
+    }
+
+    // Load Data
+    fetch('transformed_data.json') // Ensure this file is in the same directory
+      .then(res => res.json())
+      .then(data => {
+        globe.pointsData(data);
+
+        // Add interaction
+        globe.onPointHover((point, event) => {
+          if (point) {
+            showTooltip(
+              `<b>Country:</b> ${point.country}<br>
+              <b>Product:</b> ${point.product}<br>
+              <b>Status:</b> ${point.status}`,
+              event.clientX,
+              event.clientY
+            );
+          } else {
+            hideTooltip();
+          }
+        });
+      });
+
+    // Animate
+    function animate() {
+      requestAnimationFrame(animate);
+      globe.rotation.y += 0.002; // Rotate globe
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
