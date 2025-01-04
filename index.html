@@ -27,93 +27,52 @@
 <body>
   <div id="tooltip"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three-globe"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three-globe@2.24.11"></script>
 
   <script>
-    // Initialize the scene, camera, and renderer
+    // Scene, Camera, Renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Add the globe
+    // Add Lights
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(1, 1, 1).normalize();
+    scene.add(light);
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    // Add Globe
     const globe = new ThreeGlobe()
       .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-      .pointsData([]) // Placeholder for points data
+      .showAtmosphere(true)
+      .atmosphereColor('#b0c4de')
+      .atmosphereAltitude(0.1);
+
+    scene.add(globe);
+    camera.position.set(0, 0, 300);
+
+    // Test with Hardcoded Data
+    const data = [
+      { product: "Destiknee™ Total Knee System", country: "Austria", status: "Yes", coordinates: [47.5162, 14.5501] },
+      { product: "Opulent™ Total Knee System", country: "Belgium", status: "Yes", coordinates: [50.8503, 4.3517] }
+    ];
+    globe.pointsData(data)
       .pointLat(d => d.coordinates[0])
       .pointLng(d => d.coordinates[1])
       .pointAltitude(0.03)
       .pointRadius(0.2)
-      .pointColor(d => {
-        switch (d.status) {
-          case "Yes": return "green";
-          case "No": return "red";
-          case "UR": return "yellow";
-          default: return "gray";
-        }
-      });
+      .pointColor(d => d.status === "Yes" ? "green" : "red");
 
-    scene.add(globe);
-    camera.position.z = 300;
-
-    // Tooltip for points
-    const tooltip = document.getElementById('tooltip');
-    function showTooltip(content, x, y) {
-      tooltip.style.left = `${x}px`;
-      tooltip.style.top = `${y}px`;
-      tooltip.innerHTML = content;
-      tooltip.style.display = 'block';
-    }
-    function hideTooltip() {
-      tooltip.style.display = 'none';
-    }
-
-    // Load JSON data
-    fetch('./transformed_data.json')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log('Data loaded:', data); // Debug: Check the loaded data
-        globe.pointsData(data);
-
-        // Add interaction for tooltips
-        globe.onPointHover((point, event) => {
-          if (point) {
-            showTooltip(
-              `<b>Country:</b> ${point.country}<br>
-               <b>Product:</b> ${point.product}<br>
-               <b>Status:</b> ${point.status}`,
-              event.clientX,
-              event.clientY
-            );
-          } else {
-            hideTooltip();
-          }
-        });
-      })
-      .catch(error => {
-        console.error('Error loading JSON file:', error);
-      });
-
-    // Animate the globe
+    // Animate Globe
     function animate() {
       requestAnimationFrame(animate);
-      globe.rotation.y += 0.002; // Slowly rotate the globe
+      globe.rotation.y += 0.002;
       renderer.render(scene, camera);
     }
     animate();
-
-    // Handle window resizing
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
   </script>
 </body>
 </html>
