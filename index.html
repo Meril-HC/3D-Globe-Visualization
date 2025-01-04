@@ -14,12 +14,13 @@
     }
     #tooltip {
       position: absolute;
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      padding: 5px 10px;
-      border-radius: 5px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
       pointer-events: none;
       display: none;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -29,20 +30,20 @@
   <script src="https://cdn.jsdelivr.net/npm/three-globe"></script>
 
   <script>
-    // Initialize Scene, Camera, and Renderer
+    // Initialize the scene, camera, and renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Add Globe
+    // Add the globe
     const globe = new ThreeGlobe()
       .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
       .pointsData([]) // Placeholder for points data
       .pointLat(d => d.coordinates[0])
       .pointLng(d => d.coordinates[1])
-      .pointAltitude(0.02)
+      .pointAltitude(0.03)
       .pointRadius(0.2)
       .pointColor(d => {
         switch (d.status) {
@@ -54,35 +55,39 @@
       });
 
     scene.add(globe);
-    camera.position.z = 200;
+    camera.position.z = 300;
 
-    // Tooltip
+    // Tooltip for points
     const tooltip = document.getElementById('tooltip');
-
     function showTooltip(content, x, y) {
       tooltip.style.left = `${x}px`;
       tooltip.style.top = `${y}px`;
       tooltip.innerHTML = content;
       tooltip.style.display = 'block';
     }
-
     function hideTooltip() {
       tooltip.style.display = 'none';
     }
 
-    // Load Data
-    fetch('transformed_data.json') // Ensure this file is in the same directory
-      .then(res => res.json())
+    // Load JSON data
+    fetch('./transformed_data.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
+        console.log('Data loaded:', data); // Debug: Check the loaded data
         globe.pointsData(data);
 
-        // Add interaction
+        // Add interaction for tooltips
         globe.onPointHover((point, event) => {
           if (point) {
             showTooltip(
               `<b>Country:</b> ${point.country}<br>
-              <b>Product:</b> ${point.product}<br>
-              <b>Status:</b> ${point.status}`,
+               <b>Product:</b> ${point.product}<br>
+               <b>Status:</b> ${point.status}`,
               event.clientX,
               event.clientY
             );
@@ -90,17 +95,20 @@
             hideTooltip();
           }
         });
+      })
+      .catch(error => {
+        console.error('Error loading JSON file:', error);
       });
 
-    // Animate
+    // Animate the globe
     function animate() {
       requestAnimationFrame(animate);
-      globe.rotation.y += 0.002; // Rotate globe
+      globe.rotation.y += 0.002; // Slowly rotate the globe
       renderer.render(scene, camera);
     }
     animate();
 
-    // Handle window resize
+    // Handle window resizing
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
