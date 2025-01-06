@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Map with Hover and Highlight</title>
+  <title>Interactive Map with Debugging</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     #map {
@@ -35,7 +35,7 @@
     // Load GeoJSON for country boundaries
     const geoJsonUrl = 'https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson';
 
-    // Country name mapping (if needed)
+    // Country name mapping (debug any mismatches here)
     const countryNameMap = {
       "United States": "United States of America",
       "Russia": "Russian Federation",
@@ -47,21 +47,34 @@
 
     // Fetch product data and country boundaries
     Promise.all([
-      fetch('./transformed_data.json').then(res => res.json()),
-      fetch(geoJsonUrl).then(res => res.json())
+      fetch('./transformed_data.json').then(res => {
+        if (!res.ok) {
+          throw new Error(`Error fetching JSON file: ${res.statusText}`);
+        }
+        return res.json();
+      }),
+      fetch(geoJsonUrl).then(res => {
+        if (!res.ok) {
+          throw new Error(`Error fetching GeoJSON file: ${res.statusText}`);
+        }
+        return res.json();
+      })
     ]).then(([productData, geoJsonData]) => {
+      console.log('Product Data:', productData); // Debug product data
+      console.log('GeoJSON Data:', geoJsonData); // Debug GeoJSON data
+
       const countryData = {};
 
       // Group products by country
       productData.forEach(item => {
         const country = countryNameMap[item.country] || item.country; // Map country names
-
         if (!countryData[country]) {
           countryData[country] = { totalProducts: 0 };
         }
-
         countryData[country].totalProducts += 1;
       });
+
+      console.log('Country Data:', countryData); // Debug grouped data by country
 
       // Style for highlighting country borders on hover
       const highlightStyle = {
@@ -79,6 +92,8 @@
         },
         onEachFeature: (feature, layer) => {
           const countryName = feature.properties.ADMIN;
+          console.log(`Processing country: ${countryName}`); // Debug each country being processed
+
           const totalProducts = countryData[countryName]?.totalProducts || 0;
 
           // Add hover effect for the country
