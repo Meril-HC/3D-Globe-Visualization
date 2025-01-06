@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Map with Hover</title>
+  <title>Interactive Map with Hover and Highlight</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     #map {
@@ -13,12 +13,17 @@
     .leaflet-popup-content {
       font-size: 14px;
     }
+    .highlight-country {
+      color: red;
+      weight: 3;
+      fillOpacity: 0.1;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+  <script src="https://unpkg.com/leaflet-geoman-free@2.13.0/dist/leaflet-geoman.min.js"></script>
   <script>
     // Initialize the map
     const map = L.map('map').setView([20, 0], 2); // Centered globally
@@ -28,80 +33,75 @@
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    // Define country flags (example flags for a few countries)
-    const countryFlags = {
-      Austria: 'https://flagcdn.com/w320/at.png',
-      Belgium: 'https://flagcdn.com/w320/be.png',
-      France: 'https://flagcdn.com/w320/fr.png',
-      Germany: 'https://flagcdn.com/w320/de.png',
-      Spain: 'https://flagcdn.com/w320/es.png'
-    };
+    // Load GeoJSON for country boundaries
+    const geoJsonUrl = 'https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson';
 
-    // Load JSON data
-    fetch('./transformed_data.json')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+    // Fetch product data and country boundaries
+    Promise.all([
+      fetch('./transformed_data.json').then(res => res.json()),
+      fetch(geoJsonUrl).then(res => res.json())
+    ]).then(([productData, geoJsonData]) => {
+      const countryData = {};
+
+      // Group products by country
+      productData.forEach(item => {
+        const { country } = item;
+
+        if (!countryData[country]) {
+          countryData[country] = { totalProducts: 0 };
         }
-        return response.json();
-      })
-      .then(data => {
-        console.log('Data loaded:', data);
 
-        // Group products by country
-        const countryData = {};
-        data.forEach(item => {
-          const { country, status } = item;
-
-          if (!countryData[country]) {
-            countryData[country] = { registered: 0, underRegistration: 0, total: 0 };
-          }
-
-          countryData[country].total += 1;
-
-          if (status === 'Yes') {
-            countryData[country].registered += 1;
-          } else if (status === 'UR') {
-            countryData[country].underRegistration += 1;
-          }
-        });
-
-        // Add polygons or hoverable markers for countries
-        for (const [country, stats] of Object.entries(countryData)) {
-          // Example coordinates for demonstration (adjust to actual polygons)
-          const coordinates = data.find(item => item.country === country)?.coordinates;
-
-          if (coordinates) {
-            const marker = L.circleMarker(coordinates, {
-              color: 'blue',
-              radius: 8,
-              fillOpacity: 0.6
-            }).addTo(map);
-
-            // Add hover event
-            marker.on('mouseover', () => {
-              const flag = countryFlags[country] || 'https://via.placeholder.com/50';
-              marker.bindPopup(`
-                <div style="text-align: center;">
-                  <img src="${flag}" alt="${country} flag" width="100">
-                  <h3>${country}</h3>
-                  <p><b>Total Products:</b> ${stats.total}</p>
-                  <p><b>Registered:</b> ${stats.registered}</p>
-                  <p><b>Under Registration:</b> ${stats.underRegistration}</p>
-                </div>
-              `).openPopup();
-            });
-
-            // Close popup on mouseout
-            marker.on('mouseout', () => {
-              marker.closePopup();
-            });
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Error loading JSON file:', error);
+        countryData[country].totalProducts += 1;
       });
+
+      // Style for highlighting country borders on hover
+      const highlightStyle = {
+        color: 'red',
+        weight: 2,
+        fillOpacity: 0.1
+      };
+
+      // Add GeoJSON layer to the map
+      const geoJsonLayer = L.geoJson(geoJsonData, {
+        style: {
+          color: '#3388ff',
+          weight: 1,
+          fillOpacity: 0.2
+        },
+        onEachFeature: (feature, layer) => {
+          const countryName = feature.properties.ADMIN;
+          const totalProducts = countryData[countryName]?.totalProducts || 0;
+
+          // Add hover effect for the country
+          layer.on('mouseover', () => {
+            layer.setStyle(highlightStyle);
+
+            const popupContent = `
+              <div style="text-align: center;">
+                <h3>${countryName}</h3>
+                <p><b>Total Products:</b> ${totalProducts}</p>
+              </div>
+            `;
+            layer.bindPopup(popupContent).openPopup();
+          });
+
+          // Remove hover effect
+          layer.on('mouseout', () => {
+            geoJsonLayer.resetStyle(layer);
+          });
+        }
+      }).addTo(map);
+
+      // Add zoom handling for continuous maps
+      map.on('zoomend', () => {
+        const zoomLevel = map.getZoom();
+        if (zoomLevel < 2) {
+          map.setZoom(2); // Prevent zooming out too far
+        }
+      });
+    }).catch(error => {
+      console.error('Error loading data:', error);
+    });
   </script>
 </body>
 </html>
