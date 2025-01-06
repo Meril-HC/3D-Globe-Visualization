@@ -54,22 +54,10 @@
     scene.add(globe);
     camera.position.set(0, 0, 300);
 
-    // Test with Hardcoded Data
-    const data = [
-      { product: "Destiknee™ Total Knee System", country: "Austria", status: "Yes", coordinates: [47.5162, 14.5501] },
-      { product: "Opulent™ Total Knee System", country: "Belgium", status: "Yes", coordinates: [50.8503, 4.3517] }
-    ];
-    globe.pointsData(data)
-      .pointLat(d => d.coordinates[0])
-      .pointLng(d => d.coordinates[1])
-      .pointAltitude(0.03)
-      .pointRadius(0.2)
-      .pointColor(d => d.status === "Yes" ? "green" : "red");
-
     // Animate Globe
     function animate() {
       requestAnimationFrame(animate);
-      globe.rotation.y += 0.002;
+      globe.rotation.y += 0.002; // Rotate globe
       renderer.render(scene, camera);
     }
     animate();
