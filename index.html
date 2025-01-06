@@ -3,84 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Globe Visualization</title>
+  <title>Interactive Map Visualization</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
+    #map {
+      height: 100vh; /* Fullscreen height */
+      width: 100%;
     }
-    canvas {
-      display: block;
-    }
-    #tooltip {
-      position: absolute;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 8px;
-      border-radius: 4px;
-      pointer-events: none;
-      display: none;
+    .leaflet-popup-content {
       font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <div id="tooltip"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three-globe@2.24.11"></script>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Initialize the map
+    const map = L.map('map').setView([20, 0], 2); // Centered globally
 
-<script>
-  // Scene, Camera, Renderer
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
-  // Add Lights
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(1, 1, 1).normalize();
-  scene.add(light);
-  const ambientLight = new THREE.AmbientLight(0x404040);
-  scene.add(ambientLight);
+    // Load JSON data
+    fetch('./transformed_data.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Data loaded:', data);
 
-  // Add Globe
-  const globe = new ThreeGlobe()
-    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-    .showAtmosphere(true)
-    .atmosphereColor('#b0c4de')
-    .atmosphereAltitude(0.1);
+        // Add markers for each point in the JSON data
+        data.forEach(item => {
+          const { product, country, status, coordinates } = item;
 
-  scene.add(globe);
-  camera.position.set(0, 0, 300);
+          // Determine marker color based on status
+          let markerColor = '';
+          switch (status) {
+            case 'Yes':
+              markerColor = 'green';
+              break;
+            case 'No':
+              markerColor = 'red';
+              break;
+            case 'UR':
+              markerColor = 'yellow';
+              break;
+            default:
+              markerColor = 'gray';
+          }
 
-  // Load Data Points
-  fetch('./transformed_data.json')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Data loaded:', data);
-      globe.pointsData(data)
-        .pointLat(d => d.coordinates[0])
-        .pointLng(d => d.coordinates[1])
-        .pointAltitude(0.03)
-        .pointRadius(0.2)
-        .pointColor(d => d.status === "Yes" ? "green" : "red");
-    })
-    .catch(error => {
-      console.error('Error loading JSON file:', error);
-    });
+          // Create a marker with a custom color
+          const marker = L.circleMarker(coordinates, {
+            color: markerColor,
+            radius: 8, // Marker size
+            fillOpacity: 0.8
+          }).addTo(map);
 
-  // Animate Globe
-  function animate() {
-    requestAnimationFrame(animate);
-    globe.rotation.y += 0.002; // Rotate globe
-    renderer.render(scene, camera);
-  }
-  animate();
-</script>
-
+          // Add a popup to the marker
+          marker.bindPopup(
+            `<b>Country:</b> ${country}<br>
+             <b>Product:</b> ${product}<br>
+             <b>Status:</b> ${status}`
+          );
+        });
+      })
+      .catch(error => {
+        console.error('Error loading JSON file:', error);
+      });
+  </script>
+</body>
+</html>
