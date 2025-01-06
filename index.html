@@ -23,7 +23,6 @@
 <body>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-geoman-free@2.13.0/dist/leaflet-geoman.min.js"></script>
   <script>
     // Initialize the map
     const map = L.map('map').setView([20, 0], 2); // Centered globally
@@ -36,6 +35,16 @@
     // Load GeoJSON for country boundaries
     const geoJsonUrl = 'https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson';
 
+    // Country name mapping (if needed)
+    const countryNameMap = {
+      "United States": "United States of America",
+      "Russia": "Russian Federation",
+      "South Korea": "Republic of Korea",
+      "Iran": "Iran (Islamic Republic of)",
+      "China": "China", // Add more mappings if necessary
+      // Default mapping if no change is required
+    };
+
     // Fetch product data and country boundaries
     Promise.all([
       fetch('./transformed_data.json').then(res => res.json()),
@@ -45,7 +54,7 @@
 
       // Group products by country
       productData.forEach(item => {
-        const { country } = item;
+        const country = countryNameMap[item.country] || item.country; // Map country names
 
         if (!countryData[country]) {
           countryData[country] = { totalProducts: 0 };
