@@ -23,109 +23,71 @@
 <body>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    // Initialize the map
-    const map = L.map('map').setView([20, 0], 2); // Centered globally
+ <script>
+  // Initialize the map
+  const map = L.map('map').setView([20, 0], 2);
 
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+  // Add OpenStreetMap tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-    // Load GeoJSON for country boundaries
-    const geoJsonUrl = 'https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson';
+  // Fetch country data and GeoJSON
+  fetch('./random_country_data_with_colors.json')
+    .then(response => response.json())
+    .then(countryData => {
+      fetch('./countries.geojson')
+        .then(response => response.json())
+        .then(geoJsonData => {
+          const countryNameMap = {
+            "United States": "United States of America",
+            "Russia": "Russian Federation",
+            "South Korea": "Republic of Korea",
+            "Iran": "Iran (Islamic Republic of)"
+            // Add more mappings as needed
+          };
 
-    // Country name mapping (debug any mismatches here)
-    const countryNameMap = {
-      "United States": "United States of America",
-      "Russia": "Russian Federation",
-      "South Korea": "Republic of Korea",
-      "Iran": "Iran (Islamic Republic of)",
-      "China": "China", // Add more mappings if necessary
-      // Default mapping if no change is required
-    };
+          const geoJsonLayer = L.geoJson(geoJsonData, {
+            style: feature => {
+              const countryName = feature.properties.ADMIN;
+              const mappedName = countryNameMap[countryName] || countryName;
+              const countryInfo = countryData.find(c => c.country === mappedName);
 
-    // Fetch product data and country boundaries
-    Promise.all([
-      fetch('./transformed_data.json').then(res => {
-        if (!res.ok) {
-          throw new Error(`Error fetching JSON file: ${res.statusText}`);
-        }
-        return res.json();
-      }),
-      fetch(geoJsonUrl).then(res => {
-        if (!res.ok) {
-          throw new Error(`Error fetching GeoJSON file: ${res.statusText}`);
-        }
-        return res.json();
-      })
-    ]).then(([productData, geoJsonData]) => {
-      console.log('Product Data:', productData); // Debug product data
-      console.log('GeoJSON Data:', geoJsonData); // Debug GeoJSON data
+              if (countryInfo) {
+                return {
+                  fillColor: countryInfo.color,
+                  color: "black",
+                  weight: 1,
+                  fillOpacity: 0.7
+                };
+              } else {
+                console.log(`No data for country: ${countryName}`);
+                return {
+                  fillColor: "grey",
+                  color: "black",
+                  weight: 1,
+                  fillOpacity: 0.5
+                };
+              }
+            },
+            onEachFeature: (feature, layer) => {
+              const countryName = feature.properties.ADMIN;
+              const mappedName = countryNameMap[countryName] || countryName;
+              const countryInfo = countryData.find(c => c.country === mappedName);
 
-      const countryData = {};
-
-      // Group products by country
-      productData.forEach(item => {
-        const country = countryNameMap[item.country] || item.country; // Map country names
-        if (!countryData[country]) {
-          countryData[country] = { totalProducts: 0 };
-        }
-        countryData[country].totalProducts += 1;
-      });
-
-      console.log('Country Data:', countryData); // Debug grouped data by country
-
-      // Style for highlighting country borders on hover
-      const highlightStyle = {
-        color: 'red',
-        weight: 2,
-        fillOpacity: 0.1
-      };
-
-      // Add GeoJSON layer to the map
-      const geoJsonLayer = L.geoJson(geoJsonData, {
-        style: {
-          color: '#3388ff',
-          weight: 1,
-          fillOpacity: 0.2
-        },
-        onEachFeature: (feature, layer) => {
-          const countryName = feature.properties.ADMIN;
-          console.log(`Processing country: ${countryName}`); // Debug each country being processed
-
-          const totalProducts = countryData[countryName]?.totalProducts || 0;
-
-          // Add hover effect for the country
-          layer.on('mouseover', () => {
-            layer.setStyle(highlightStyle);
-
-            const popupContent = `
-              <div style="text-align: center;">
-                <h3>${countryName}</h3>
-                <p><b>Total Products:</b> ${totalProducts}</p>
-              </div>
-            `;
-            layer.bindPopup(popupContent).openPopup();
-          });
-
-          // Remove hover effect
-          layer.on('mouseout', () => {
-            geoJsonLayer.resetStyle(layer);
-          });
-        }
-      }).addTo(map);
-
-      // Add zoom handling for continuous maps
-      map.on('zoomend', () => {
-        const zoomLevel = map.getZoom();
-        if (zoomLevel < 2) {
-          map.setZoom(2); // Prevent zooming out too far
-        }
-      });
-    }).catch(error => {
-      console.error('Error loading data:', error);
-    });
-  </script>
+              if (countryInfo) {
+                layer.bindPopup(`
+                  <strong>${countryInfo.country}</strong><br>
+                  Registered Products: ${countryInfo.registered}<br>
+                  Under Registration: ${countryInfo.underRegistration}<br>
+                  <img src="${countryInfo.flag}" alt="Flag" style="width: 50px; height: auto;">
+                `);
+              }
+            }
+          }).addTo(map);
+        });
+    })
+    .catch(error => console.error('Error loading data:', error));
+</script>
 </body>
 </html>
