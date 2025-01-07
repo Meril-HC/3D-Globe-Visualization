@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Map with Colors and Popups</title>
+  <title>Modern Static Country Map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     #map {
       height: 100vh; /* Fullscreen height */
-      width: 100%;
+      width: 100%; /* Fullscreen width */
+      background-color: #f0f0f0; /* Light background for modern look */
     }
-    .leaflet-popup-content {
-      font-size: 14px;
+    .country-label {
+      font-size: 10px;
+      font-weight: bold;
+      text-anchor: middle;
     }
   </style>
 </head>
@@ -19,63 +22,49 @@
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // Initialize the map
-    const map = L.map('map').setView([20, 0], 2); // Centered globally
+    // Initialize the map without zoom and pan controls
+    const map = L.map('map', {
+      zoomControl: false, // Disable zoom controls
+      dragging: false, // Disable dragging
+      scrollWheelZoom: false, // Disable zoom via scroll
+      doubleClickZoom: false, // Disable double click zoom
+      boxZoom: false, // Disable box zoom
+      keyboard: false, // Disable keyboard controls
+      attributionControl: false // Remove attribution
+    }).setView([20, 0], 2); // Centered globally
 
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    // Define a simple style function for countries
+    function style(feature) {
+      return {
+        fillColor: feature.properties.ADMIN === "India" ? "#ffa500" : "#3399ff", // Highlight India in orange
+        color: "#ffffff", // Border color (white)
+        weight: 1,
+        fillOpacity: 0.8
+      };
+    }
 
-    // Load country data and GeoJSON boundaries
-    Promise.all([
-      fetch('./random_country_data_with_colors.json').then(res => res.json()),
-      fetch('./countries.geojson').then(res => res.json())
-    ]).then(([countryData, geoJsonData]) => {
-      // Create a mapping of country names to their data
-      const countryDataMap = Object.fromEntries(countryData.map(c => [c.country, c]));
+    // Fetch GeoJSON data
+    fetch('./custom_countries.geojson') // Use a custom GeoJSON file with updated India boundaries
+      .then(res => res.json())
+      .then(geoJsonData => {
+        // Add GeoJSON layer with the styled countries
+        L.geoJson(geoJsonData, {
+          style: style,
+          onEachFeature: (feature, layer) => {
+            // Add country name labels as popups
+            const countryName = feature.properties.ADMIN;
+            layer.bindPopup(`<strong>${countryName}</strong>`, {
+              closeButton: false,
+              autoClose: true
+            });
 
-      // Add GeoJSON layer
-      L.geoJson(geoJsonData, {
-        style: feature => {
-          const countryName = feature.properties.ADMIN;
-          const countryInfo = countryDataMap[countryName];
-
-          if (countryInfo) {
-            return {
-              fillColor: countryInfo.color, // Use the color from the JSON
-              color: "black", // Border color
-              weight: 1,
-              fillOpacity: 0.7
-            };
-          } else {
-            return {
-              fillColor: "grey", // Default color for countries without data
-              color: "black",
-              weight: 1,
-              fillOpacity: 0.5
-            };
+            // Show label on hover
+            layer.on('mouseover', () => layer.openPopup());
+            layer.on('mouseout', () => layer.closePopup());
           }
-        },
-        onEachFeature: (feature, layer) => {
-          const countryName = feature.properties.ADMIN;
-          const countryInfo = countryDataMap[countryName];
-
-          if (countryInfo) {
-            layer.bindPopup(`
-              <strong>${countryInfo.country}</strong><br>
-              Registered Products: ${countryInfo.registered}<br>
-              Under Registration: ${countryInfo.underRegistration}<br>
-              <img src="${countryInfo.flag}" alt="Flag" style="width: 50px; height: auto;">
-            `);
-          } else {
-            layer.bindPopup(`<strong>${countryName}</strong><br>No data available.`);
-          }
-        }
-      }).addTo(map);
-    }).catch(error => {
-      console.error('Error loading data:', error);
-    });
+        }).addTo(map);
+      })
+      .catch(error => console.error('Error loading GeoJSON:', error));
   </script>
 </body>
 </html>
